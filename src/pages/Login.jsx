@@ -1,12 +1,16 @@
-import React, { useRef, useState, useMemo } from "react";
+// src/pages/Login.jsx
+import React, { useState, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, ChevronRight, ShieldCheck } from "lucide-react";
-import Turnstile from "react-turnstile";
-import { supabase } from "../lib/supabase";
-import { LOGO_URL, THEME_HEX } from "../shared/constants";
+import { Mail, Lock, Eye, EyeOff, ChevronRight, ShieldCheck, Info, X } from "lucide-react";
 
-/* --- Background (matches Assistance/Home) --- */
+/* =========================================================
+ * DEMO CONFIG — FRONTEND ONLY
+ * =======================================================*/
+const DEMO_NOTICE =
+  "This is a DEMO login page. No authentication happens. No data is sent to any server.";
+
+/* --- Background (matches Home/Assistance look) --- */
 function NoirBg() {
   return (
     <>
@@ -25,17 +29,15 @@ function NoirBg() {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const from = (location.state && location.state.from) || "/";
+
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [toast, setToast] = useState(null);
 
-  // Turnstile
-  const [token, setToken] = useState(null);
-  const [captchaReady, setCaptchaReady] = useState(false);
-  const tsRef = useRef(null);
-  const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY || "").trim(); // required in prod
   const prefersReducedMotion = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -44,58 +46,42 @@ export default function Login() {
     []
   );
 
-  const from = (location.state && location.state.from) || "/";
-
-  async function verifyCaptcha(tok) {
-    const r = await fetch("/api/turnstile-verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: tok }),
-    });
-    return r.ok;
-  }
-
-  const onSubmit = async (e) => {
+  const onSubmit = (e) => {
     e.preventDefault();
     setErr("");
+
     if (!/\S+@\S+\.\S+/.test(email)) return setErr("Enter a valid email.");
     if (pw.length < 6) return setErr("Password must be at least 6 characters.");
-    if (!SITE_KEY) return setErr("Captcha site key missing. Set VITE_TURNSTILE_SITE_KEY.");
-    if (!token) return setErr("Please complete the captcha.");
 
     setLoading(true);
-    try {
-      const ok = await verifyCaptcha(token);
-      if (!ok) throw new Error("Captcha verification failed.");
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-      if (error) throw new Error(error.message || "Login failed.");
-
-      navigate(from, { replace: true });
-    } catch (e2) {
-      setErr(e2.message || "Something went wrong.");
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      setToast({
+        type: "ok",
+        text: "Demo login successful. No authentication occurred.",
+      });
+      setTimeout(() => navigate(from, { replace: true }), 900);
+    }, 1200);
   };
 
   return (
     <div className="min-h-[100dvh] text-white relative grid place-items-center px-4">
       <NoirBg />
+
       {/* floating glows */}
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: -20 }}
         animate={prefersReducedMotion ? {} : { opacity: 0.7, y: 0 }}
         transition={{ duration: 0.6 }}
         className="pointer-events-none fixed -top-24 -left-24 w-80 h-80 rounded-full blur-3xl"
-        style={{ background: THEME_HEX }}
+        style={{ background: "var(--theme, #0a0a1a)" }}
       />
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
         animate={prefersReducedMotion ? {} : { opacity: 0.6, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
         className="pointer-events-none fixed -bottom-24 -right-24 w-96 h-96 rounded-full blur-3xl"
-        style={{ background: THEME_HEX }}
+        style={{ background: "var(--theme, #0a0a1a)" }}
       />
 
       <motion.div
@@ -105,24 +91,25 @@ export default function Login() {
         className="w-full max-w-md rounded-2xl border border-white/12 bg-white/5 backdrop-blur p-5 shadow-2xl"
       >
         {/* header */}
-        <div className="flex items-center gap-3">
-          <img src={LOGO_URL} alt="Noir" className="h-9 w-9 object-contain" />
-          <div className="font-semibold text-lg tracking-wide">Noir MUN — Sign in</div>
+        <div className="font-semibold text-lg tracking-wide">
+          Sign in (Demo)
         </div>
 
         {/* trust bar */}
-        <div className="mt-3 text-[11px] text-white/70 flex items-center gap-1">
-          <ShieldCheck size={14} /> Protected by Cloudflare Turnstile.
+        <div className="mt-2 text-[11px] text-white/70 flex items-center gap-1">
+          <ShieldCheck size={14} /> Frontend-only demo authentication.
         </div>
+
+        <div className="mt-2 text-xs text-white/70">{DEMO_NOTICE}</div>
 
         <form onSubmit={onSubmit} className="mt-5 space-y-4">
           {err && (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-sm text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2"
+              className="text-sm text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2 flex items-center gap-2"
             >
-              {err}
+              <Info size={14} /> {err}
             </motion.div>
           )}
 
@@ -134,9 +121,8 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@college.edu"
+                placeholder="you@example.com"
                 className="w-full bg-transparent outline-none text-sm"
-                autoComplete="email"
               />
             </div>
           </label>
@@ -144,9 +130,7 @@ export default function Login() {
           <label className="block">
             <div className="flex items-center justify-between">
               <div className="text-xs mb-1 text-white/70">Password</div>
-              <Link to="/reset" className="text-xs text-white/70 hover:underline">
-                Forgot?
-              </Link>
+              <span className="text-xs text-white/50">Demo</span>
             </div>
             <div className="flex items-center gap-2 bg-white/5 border border-white/12 rounded-xl px-3 py-2 focus-within:border-white/25 transition-colors">
               <Lock size={16} className="opacity-80" />
@@ -156,7 +140,6 @@ export default function Login() {
                 onChange={(e) => setPw(e.target.value)}
                 placeholder="••••••••"
                 className="w-full bg-transparent outline-none text-sm"
-                autoComplete="current-password"
               />
               <button
                 type="button"
@@ -169,28 +152,6 @@ export default function Login() {
             </div>
           </label>
 
-          {/* Turnstile captcha */}
-          <div className="rounded-xl border border-white/12 bg-white/5 p-3">
-            {!SITE_KEY ? (
-              <div className="text-xs text-red-300">
-                Set <code>VITE_TURNSTILE_SITE_KEY</code> to render the captcha.
-              </div>
-            ) : (
-              <Turnstile
-                ref={tsRef}
-                sitekey={SITE_KEY}
-                options={{ theme: "dark", size: "normal", retry: "auto" }}
-                onLoad={() => setCaptchaReady(true)}
-                onVerify={(tok) => {
-                  setToken(tok);
-                  setErr("");
-                }}
-                onExpire={() => setToken(null)}
-                onError={() => setErr("Captcha error — please retry.")}
-              />
-            )}
-          </div>
-
           <motion.button
             whileHover={{ y: -1 }}
             whileTap={{ y: 0 }}
@@ -198,16 +159,32 @@ export default function Login() {
             disabled={loading}
             className="w-full mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-4 py-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? "Signing in…" : "Sign In"} <ChevronRight size={16} />
+            {loading ? "Signing in…" : "Sign In (Demo)"} <ChevronRight size={16} />
           </motion.button>
 
           <div className="text-xs text-white/70 text-center mt-1">
-            Don’t have an account? <Link to="/signup" className="underline">Create one</Link>
+            Don’t have an account?{" "}
+            <Link to="/signup" className="underline">
+              Create one
+            </Link>
           </div>
         </form>
       </motion.div>
 
-      {/* tiny css polish */}
+      {toast && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 20, opacity: 0 }}
+          className="fixed bottom-4 right-4 bg-black/70 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-sm flex items-center gap-2"
+        >
+          {toast.text}
+          <button onClick={() => setToast(null)}>
+            <X size={14} />
+          </button>
+        </motion.div>
+      )}
+
       <style>{`::selection{ background: rgba(255,255,255,.22); }`}</style>
     </div>
   );
