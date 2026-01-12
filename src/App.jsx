@@ -13,8 +13,6 @@ import Signup from "./pages/Signup.jsx";
 import BestMunDelhi from "./pages/BestMunDelhi.jsx";
 import Register from "./pages/Register.jsx";
 
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import RedirectIfAuthed from "./components/RedirectIfAuthed.jsx";
 
 // (Optional) only if your guard redirects to /403
 import Forbidden from "./pages/Forbidden.jsx";  // safe to keep
